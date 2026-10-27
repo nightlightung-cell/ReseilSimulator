@@ -11,10 +11,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,40 +21,30 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Android SDK packages
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platform-tools" \
-            "platforms;android-34" \
-            "build-tools;34.0.0"
-
       - name: Locate and unpack project
         run: |
-          if [ ! -f gradlew ]; then
-            ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
-            if [ -z "$ZIP_FILE" ]; then
-              echo "ERROR: No gradlew or project ZIP found"
-              exit 1
-            fi
-            mkdir -p game
-            unzip -q "$ZIP_FILE" -d game
+          set -e
+          if [ ! -d game ] && [ -f ReseilSimulator_Android_Project.zip ]; then
+            unzip -o ReseilSimulator_Android_Project.zip -d extracted
           fi
-
-          WRAPPER=$(find . -type f -name gradlew \
-            -not -path './.git/*' | head -n 1)
-
-          if [ -z "$WRAPPER" ]; then
-            echo "ERROR: No Gradle wrapper found in project"
-            find . -maxdepth 4 -type f | head -n 100
+          if [ ! -d game ]; then
+            echo "ERROR: Project folder game not found"
+            find extracted -maxdepth 4 -type f | head -100
             exit 1
           fi
-
-          echo "PROJECT_DIR=$(dirname "$WRAPPER")" >> "$GITHUB_ENV"
+          echo "Project found:"
+          ls -la game
+          if [ ! -f game/gradlew ]; then
+            echo "No wrapper found; installing Gradle"
+            sudo apt-get update
+            sudo apt-get install -y gradle
+            cd game
+            gradle wrapper
+          fi
 
       - name: Build APK
+        working-directory: game
         run: |
-          cd "$PROJECT_DIR"
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
@@ -66,6 +52,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ReseilSimulator-APK
-          path: '**/build/outputs/apk/debug/*.apk'
+          path: game/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           
