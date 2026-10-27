@@ -21,48 +21,34 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Locate and unpack project
         run: |
           set -e
           ZIP_FILE=$(find . -maxdepth 2 -type f -iname '*.zip' | head -n 1)
+          mkdir -p extracted
+          unzip -o "$ZIP_FILE" -d extracted
 
-          if [ -n "$ZIP_FILE" ]; then
-            echo "Unpacking: $ZIP_FILE"
-            mkdir -p extracted
-            unzip -o "$ZIP_FILE" -d extracted
-          fi
-
-          PROJECT_DIR=$(find . -type f -path '*/app/build.gradle' \
-            -not -path './.git/*' \
+          PROJECT_DIR=$(find extracted -type f -path '*/app/build.gradle' \
             -printf '%h\n' | head -n 1)
-
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: Cannot find Android app/build.gradle"
-            find . -maxdepth 4 -type f | head -100
-            exit 1
-          fi
-
           PROJECT_DIR="${PROJECT_DIR%/app}"
-          echo "Project directory: $PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-          if [ ! -f "$PROJECT_DIR/gradlew" ]; then
-            sudo apt-get update
-            sudo apt-get install -y gradle
-            cd "$PROJECT_DIR"
-            gradle wrapper
-          fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+          echo "Project: $PROJECT_DIR"
 
       - name: Build APK
         run: |
           cd "$PROJECT_DIR"
-          chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          gradle --no-daemon assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: ReseilSimulator-APK
-          path: '**/app/build/outputs/apk/debug/*.apk'
+          path: extracted/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           
