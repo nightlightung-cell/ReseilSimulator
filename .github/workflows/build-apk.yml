@@ -1,39 +1,35 @@
 name: Build Reseil Simulator APK
 
 on:
-workflow_dispatch:
-push:
-branches:
-- main
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-build:
-runs-on: ubuntu-latest
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-steps:
-  - name: Download repository
-    uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Set up Java
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-  - name: Install Android SDK
-    uses: android-actions/setup-android@v3
+      - name: Build APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
 
-  - name: Accept Android SDK licenses
-    run: yes | sdkmanager --licenses || true
-
-  - name: Build APK
-    run: |
-      chmod +x gradlew
-      ./gradlew assembleDebug --stacktrace
-
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: ReseilSimulator-APK
-      path: app/build/outputs/apk/debug/*.apk
-      if-no-files-found: error
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ReseilSimulator-APK
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
