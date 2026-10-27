@@ -22,20 +22,19 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
+      - name: Install Android command-line tools
         uses: android-actions/setup-android@v3
         with:
-          accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: false
-
-      - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+          packages: |
+            platform-tools
+            platforms;android-34
+            build-tools;34.0.0
 
       - name: Find and unpack project ZIP
         run: |
           ZIP_FILE=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
           if [ -z "$ZIP_FILE" ]; then
-            echo "ERROR: No ZIP file found in repository root"
+            echo "ERROR: ZIP file not found"
             exit 1
           fi
           mkdir -p game
@@ -46,8 +45,8 @@ jobs:
         run: |
           SETTINGS=$(find game -type f \( -name settings.gradle -o -name settings.gradle.kts \) | head -n 1)
           if [ -z "$SETTINGS" ]; then
-            echo "ERROR: No Android Gradle project found in ZIP"
-            find game -maxdepth 3 -type f | head -n 100
+            echo "ERROR: Android Gradle project not found in ZIP"
+            find game -maxdepth 4 -type f | head -n 100
             exit 1
           fi
           echo "dir=$(dirname "$SETTINGS")" >> "$GITHUB_OUTPUT"
