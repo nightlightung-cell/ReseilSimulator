@@ -1,0 +1,43 @@
+
+name: Build Reseil Simulator APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'ReseilSimulator_Android_Project.zip'
+      - '.github/workflows/build-apk.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Unpack project
+        run: |
+          mkdir game
+          unzip -q ReseilSimulator_Android_Project.zip -d game
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Build APK
+        run: gradle -p game assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ReseilSimulator-APK
+          path: game/app/build/outputs/apk/debug/app-debug.apk
+          
