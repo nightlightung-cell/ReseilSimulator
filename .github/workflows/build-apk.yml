@@ -24,27 +24,38 @@ jobs:
       - name: Locate and unpack project
         run: |
           set -e
-          if [ ! -d game ] && [ -f ReseilSimulator_Android_Project.zip ]; then
-            unzip -o ReseilSimulator_Android_Project.zip -d extracted
+          ZIP_FILE=$(find . -maxdepth 2 -type f -iname '*.zip' | head -n 1)
+
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Unpacking: $ZIP_FILE"
+            mkdir -p extracted
+            unzip -o "$ZIP_FILE" -d extracted
           fi
-          if [ ! -d game ]; then
-            echo "ERROR: Project folder game not found"
-            find extracted -maxdepth 4 -type f | head -100
+
+          PROJECT_DIR=$(find . -type f -path '*/app/build.gradle' \
+            -not -path './.git/*' \
+            -printf '%h\n' | head -n 1)
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Cannot find Android app/build.gradle"
+            find . -maxdepth 4 -type f | head -100
             exit 1
           fi
-          echo "Project found:"
-          ls -la game
-          if [ ! -f game/gradlew ]; then
-            echo "No wrapper found; installing Gradle"
+
+          PROJECT_DIR="${PROJECT_DIR%/app}"
+          echo "Project directory: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
+
+          if [ ! -f "$PROJECT_DIR/gradlew" ]; then
             sudo apt-get update
             sudo apt-get install -y gradle
-            cd game
+            cd "$PROJECT_DIR"
             gradle wrapper
           fi
 
       - name: Build APK
-        working-directory: game
         run: |
+          cd "$PROJECT_DIR"
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
 
@@ -52,6 +63,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ReseilSimulator-APK
-          path: game/app/build/outputs/apk/debug/*.apk
+          path: '**/app/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
           
